@@ -1,11 +1,12 @@
 // @ts-ignore;
 import React, { useState, useEffect } from 'react';
 // @ts-ignore;
-import { ArrowLeft, Plus, Minus, History, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, History, Clock, CheckCircle, XCircle, Zap, Globe } from 'lucide-react';
 // @ts-ignore;
 import { useToast, Button, Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui';
 
 import { useForm } from 'react-hook-form';
+import ExchangeConnector from '@/components/ExchangeConnector';
 export default function Trade(props) {
   const {
     toast
@@ -15,6 +16,8 @@ export default function Trade(props) {
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('open');
   const [loading, setLoading] = useState(false);
+  const [exchangeMode, setExchangeMode] = useState('demo'); // demo, binance, okx
+  const [exchangeStatus, setExchangeStatus] = useState('disconnected');
   const form = useForm({
     defaultValues: {
       amount: '',
@@ -42,7 +45,8 @@ export default function Trade(props) {
         amount: '0.5',
         price: '43,250.50',
         status: 'open',
-        time: '2026-01-08 10:30:00'
+        time: '2026-01-08 10:30:00',
+        exchange: 'demo'
       }, {
         id: 2,
         symbol: 'ETH',
@@ -50,7 +54,8 @@ export default function Trade(props) {
         amount: '2.0',
         price: '2,280.75',
         status: 'pending',
-        time: '2026-01-08 10:25:00'
+        time: '2026-01-08 10:25:00',
+        exchange: 'demo'
       }, {
         id: 3,
         symbol: 'SOL',
@@ -58,7 +63,8 @@ export default function Trade(props) {
         amount: '10',
         price: '98.65',
         status: 'completed',
-        time: '2026-01-08 10:20:00'
+        time: '2026-01-08 10:20:00',
+        exchange: 'binance'
       }, {
         id: 4,
         symbol: 'BTC',
@@ -66,7 +72,8 @@ export default function Trade(props) {
         amount: '0.3',
         price: '43,500.00',
         status: 'cancelled',
-        time: '2026-01-08 10:15:00'
+        time: '2026-01-08 10:15:00',
+        exchange: 'okx'
       }];
       setOrders(mockOrders);
     } catch (error) {
@@ -77,11 +84,26 @@ export default function Trade(props) {
       });
     }
   };
-  const onSubmit = async data => {
+  const executeRealTrade = async data => {
     try {
       setLoading(true);
+      if (exchangeMode === 'demo') {
+        // 模拟交易
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        // 实盘交易
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // 模拟下单
+        // 这里应该调用实际的交易所API
+        // const result = await callExchangeAPI({
+        //   exchange: exchangeMode,
+        //   symbol: selectedCoin,
+        //   side: tradeType,
+        //   type: data.orderType,
+        //   quantity: data.amount,
+        //   price: data.price
+        // });
+      }
       const newOrder = {
         id: orders.length + 1,
         symbol: selectedCoin,
@@ -89,23 +111,36 @@ export default function Trade(props) {
         amount: data.amount,
         price: data.orderType === 'market' ? '市价' : data.price,
         status: 'open',
-        time: new Date().toLocaleString('zh-CN')
+        time: new Date().toLocaleString('zh-CN'),
+        exchange: exchangeMode
       };
       setOrders([newOrder, ...orders]);
       toast({
-        title: '下单成功',
-        description: `${tradeType === 'buy' ? '买入' : '卖出'} ${data.amount} ${selectedCoin} 订单已提交`
+        title: exchangeMode === 'demo' ? '模拟下单成功' : '实盘下单成功',
+        description: `${tradeType === 'buy' ? '买入' : '卖出'} ${data.amount} ${selectedCoin} 订单已提交`,
+        variant: 'default'
       });
       form.reset();
     } catch (error) {
       toast({
         title: '下单失败',
-        description: error.message,
+        description: error.message || '交易执行失败，请检查网络连接',
         variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
+  };
+  const onSubmit = async data => {
+    if (exchangeMode !== 'demo' && exchangeStatus !== 'connected') {
+      toast({
+        title: '交易所未连接',
+        description: '请先连接交易所再进行实盘交易',
+        variant: 'destructive'
+      });
+      return;
+    }
+    await executeRealTrade(data);
   };
   const cancelOrder = async orderId => {
     try {
@@ -166,6 +201,20 @@ export default function Trade(props) {
                 <p className="text-xs text-gray-400">快速下单与订单管理</p>
               </div>
             </div>
+            
+            {/* 交易模式切换 */}
+            <div className="flex items-center space-x-3">
+              <div className="flex bg-[#0B0F19] rounded-lg p-1">
+                <button className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${exchangeMode === 'demo' ? 'bg-[#2962FF] text-white' : 'text-gray-400 hover:text-white'}`} onClick={() => setExchangeMode('demo')}>
+                  <Zap className="w-3 h-3 inline mr-1" />
+                  模拟交易
+                </button>
+                <button className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${exchangeMode === 'binance' ? 'bg-[#F0B90B] text-black' : exchangeMode === 'okx' ? 'bg-[#1C56FF] text-white' : 'text-gray-400 hover:text-white'}`} onClick={() => setExchangeMode('binance')}>
+                  <Globe className="w-3 h-3 inline mr-1" />
+                  实盘交易
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -173,13 +222,30 @@ export default function Trade(props) {
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-12 gap-6">
+          {/* 交易所连接 */}
+          <div className="col-span-12">
+            <ExchangeConnector onStatusChange={setExchangeStatus} onExchangeChange={setExchangeMode} />
+          </div>
+          
           {/* Order Form */}
           <div className="col-span-5">
             <Card className="bg-[#151A25] border-gray-800">
               <CardHeader>
-                <CardTitle className="font-['Space_Grotesk']">下单</CardTitle>
+                <CardTitle className="font-['Space_Grotesk']">
+                  {exchangeMode === 'demo' ? '模拟交易' : `${exchangeMode === 'binance' ? '币安' : 'OKX'} 实盘交易`}
+                </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* 交易模式提示 */}
+                <div className={`mb-4 p-3 rounded-lg border ${exchangeMode === 'demo' ? 'bg-yellow-500/10 border-yellow-500/30' : exchangeMode === 'binance' ? 'bg-[#F0B90B]/10 border-[#F0B90B]/30' : 'bg-[#1C56FF]/10 border-[#1C56FF]/30'}`}>
+                  <div className="flex items-center space-x-2">
+                    {exchangeMode === 'demo' ? <Zap className="w-4 h-4 text-yellow-500" /> : <Globe className="w-4 h-4" />}
+                    <span className="text-sm">
+                      {exchangeMode === 'demo' ? '当前为模拟交易模式，不会产生真实资金变动' : `当前连接到 ${exchangeMode === 'binance' ? '币安' : 'OKX'} 交易所，将进行实盘交易`}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Trade Type Toggle */}
                 <div className="flex mb-6 bg-[#0B0F19] rounded-lg p-1">
                   <button className={`flex-1 py-3 rounded-md font-medium transition-all ${tradeType === 'buy' ? 'bg-[#00C853] text-white' : 'text-gray-400 hover:text-white'}`} onClick={() => setTradeType('buy')}>
@@ -270,8 +336,8 @@ export default function Trade(props) {
                       </div>}
 
                     {/* Submit Button */}
-                    <Button type="submit" className={`w-full py-6 font-bold ${tradeType === 'buy' ? 'bg-[#00C853] hover:bg-[#00C853]/90' : 'bg-[#FF3D00] hover:bg-[#FF3D00]/90'}`} disabled={loading}>
-                      {loading ? '提交中...' : `${tradeType === 'buy' ? '买入' : '卖出'} ${selectedCoin}`}
+                    <Button type="submit" className={`w-full py-6 font-bold ${exchangeMode === 'demo' ? tradeType === 'buy' ? 'bg-[#00C853] hover:bg-[#00C853]/90' : 'bg-[#FF3D00] hover:bg-[#FF3D00]/90' : exchangeMode === 'binance' ? 'bg-[#F0B90B] hover:bg-[#F0B90B]/90 text-black' : 'bg-[#1C56FF] hover:bg-[#1C56FF]/90'}`} disabled={loading || exchangeMode !== 'demo' && exchangeStatus !== 'connected'}>
+                      {loading ? '提交中...' : exchangeMode === 'demo' ? `${tradeType === 'buy' ? '买入' : '卖出'} ${selectedCoin}` : `${tradeType === 'buy' ? '买入' : '卖出'} ${selectedCoin} (实盘)`}
                     </Button>
                   </form>
                 </Form>
@@ -288,6 +354,9 @@ export default function Trade(props) {
                     <History className="w-5 h-5 mr-2" />
                     订单管理
                   </CardTitle>
+                  <div className="text-xs text-gray-400">
+                    总计: {orders.length} 个订单
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -314,6 +383,9 @@ export default function Trade(props) {
                                 <div>
                                   <div className="font-medium font-['JetBrains_Mono']">{order.symbol}</div>
                                   <div className="text-sm text-gray-400">{order.time}</div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {order.exchange === 'demo' ? '模拟交易' : order.exchange === 'binance' ? '币安实盘' : 'OKX实盘'}
+                                  </div>
                                 </div>
                               </div>
                               <div className="text-right">

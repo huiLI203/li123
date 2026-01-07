@@ -1,11 +1,12 @@
 // @ts-ignore;
 import React, { useState, useEffect } from 'react';
 // @ts-ignore;
-import { ArrowLeft, RefreshCw, TrendingUp, TrendingDown, BarChart3, LineChart, Activity, BarChart } from 'lucide-react';
+import { ArrowLeft, RefreshCw, TrendingUp, TrendingDown, BarChart3, LineChart, Activity } from 'lucide-react';
 // @ts-ignore;
-import { useToast, Button, Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Bar } from '@/components/ui';
+import { useToast, Button, Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+import AnalysisModel from '@/components/AnalysisModel.jsx';
 export default function Analysis(props) {
   const {
     toast
@@ -21,6 +22,7 @@ export default function Analysis(props) {
     ma20: 42800,
     ma50: 41500
   });
+  const [currentPrice, setCurrentPrice] = useState(43000);
   useEffect(() => {
     fetchChartData();
   }, [selectedCoin, timeframe]);
@@ -36,6 +38,17 @@ export default function Analysis(props) {
         volume: Math.random() * 1000000
       }));
       setChartData(mockData);
+      setCurrentPrice(mockData[mockData.length - 1].price);
+
+      // 更新技术指标
+      setIndicators({
+        rsi: 30 + Math.random() * 40,
+        // 30-70之间
+        macd: 100 + Math.random() * 50,
+        signal: 90 + Math.random() * 40,
+        ma20: 42500 + Math.random() * 1000,
+        ma50: 41000 + Math.random() * 1000
+      });
     } catch (error) {
       toast({
         title: '获取图表数据失败',
@@ -45,6 +58,23 @@ export default function Analysis(props) {
     } finally {
       setLoading(false);
     }
+  };
+  const handleTradeDecision = recommendation => {
+    const tradeType = recommendation.includes('buy') ? '买入' : recommendation.includes('sell') ? '卖出' : '持有';
+    toast({
+      title: '交易建议',
+      description: `模型建议: ${tradeType} ${selectedCoin}`,
+      variant: recommendation.includes('strong') ? 'default' : 'secondary'
+    });
+
+    // 跳转到交易页面
+    props.$w.utils.navigateTo({
+      pageId: 'trade',
+      params: {
+        coin: selectedCoin,
+        action: recommendation.includes('buy') ? 'buy' : 'sell'
+      }
+    });
   };
   const coins = [{
     value: 'BTC',
@@ -88,8 +118,8 @@ export default function Analysis(props) {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold font-['Space_Grotesk']">市场分析</h1>
-                <p className="text-xs text-gray-400">技术指标与趋势分析</p>
+                <h1 className="text-xl font-bold font-['Space_Grotesk']">智能分析系统</h1>
+                <p className="text-xs text-gray-400">技术指标 + AI模型决策</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -112,12 +142,15 @@ export default function Analysis(props) {
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-12 gap-6">
-          {/* Chart Section */}
+          
+          {/* 左侧：图表和技术指标 */}
           <div className="col-span-8">
+            
+            {/* 价格走势图表 */}
             <Card className="bg-[#151A25] border-gray-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="font-['Space_Grotesk']">价格走势</CardTitle>
+                  <CardTitle className="font-['Space_Grotesk']">价格走势分析</CardTitle>
                   <div className="flex items-center space-x-2">
                     {timeframes.map(tf => <Button key={tf.value} variant={timeframe === tf.value ? 'default' : 'outline'} size="sm" className={timeframe === tf.value ? 'bg-[#2962FF] hover:bg-[#2962FF]/90' : 'border-gray-700 text-gray-300 hover:bg-gray-800'} onClick={() => setTimeframe(tf.value)}>
                         {tf.label}
@@ -155,10 +188,10 @@ export default function Analysis(props) {
               </CardContent>
             </Card>
 
-            {/* Volume Chart */}
+            {/* 成交量图表 */}
             <Card className="bg-[#151A25] border-gray-800 mt-6">
               <CardHeader>
-                <CardTitle className="font-['Space_Grotesk']">成交量</CardTitle>
+                <CardTitle className="font-['Space_Grotesk']">成交量分析</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[200px]">
@@ -180,90 +213,157 @@ export default function Analysis(props) {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Indicators Panel */}
-          <div className="col-span-4">
-            <Card className="bg-[#151A25] border-gray-800">
+            {/* 技术指标面板 */}
+            <Card className="bg-[#151A25] border-gray-800 mt-6">
               <CardHeader>
                 <CardTitle className="font-['Space_Grotesk'] flex items-center">
                   <Activity className="w-5 h-5 mr-2" />
-                  技术指标
+                  技术指标分析
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  
+                  {/* RSI */}
+                  <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-400">RSI (14)</span>
+                      <span className={`font-mono font-bold ${indicators.rsi > 70 ? 'text-[#FF3D00]' : indicators.rsi < 30 ? 'text-[#00C853]' : 'text-white'}`}>
+                        {indicators.rsi.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className={`h-2 rounded-full transition-all ${indicators.rsi > 70 ? 'bg-[#FF3D00]' : indicators.rsi < 30 ? 'bg-[#00C853]' : 'bg-[#2962FF]'}`} style={{
+                      width: `${indicators.rsi}%`
+                    }} />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>超卖</span>
+                      <span>中性</span>
+                      <span>超买</span>
+                    </div>
+                  </div>
+
+                  {/* MACD */}
+                  <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
+                    <div className="text-sm text-gray-400 mb-3">MACD</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">MACD</span>
+                        <span className="font-mono text-sm text-[#2962FF]">{indicators.macd.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">Signal</span>
+                        <span className="font-mono text-sm text-[#FF9800]">{indicators.signal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">Histogram</span>
+                        <span className={`font-mono text-sm ${indicators.macd > indicators.signal ? 'text-[#00C853]' : 'text-[#FF3D00]'}`}>
+                          {(indicators.macd - indicators.signal).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 移动平均线 */}
+                  <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
+                    <div className="text-sm text-gray-400 mb-3">移动平均线</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">MA 20</span>
+                        <span className="font-mono text-sm">${indicators.ma20.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">MA 50</span>
+                        <span className="font-mono text-sm">${indicators.ma50.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">当前价格</span>
+                        <span className="font-mono text-sm">${currentPrice.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* 右侧：智能分析模型 */}
+          <div className="col-span-4">
+            
+            {/* 智能分析模型组件 */}
+            <AnalysisModel coin={selectedCoin} timeframe={timeframe} currentPrice={currentPrice} indicators={indicators} onTradeDecision={handleTradeDecision} />
+
+            {/* 趋势判断 */}
+            <Card className="bg-[#151A25] border-gray-800 mt-6">
+              <CardHeader>
+                <CardTitle className="font-['Space_Grotesk'] flex items-center">
+                  <BarChart3 className="w-5 h-5 mr-2" />
+                  趋势分析
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* RSI */}
-                <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-400">RSI (14)</span>
-                    <span className={`font-mono font-bold ${indicators.rsi > 70 ? 'text-[#FF3D00]' : indicators.rsi < 30 ? 'text-[#00C853]' : 'text-white'}`}>
-                      {indicators.rsi.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div className={`h-2 rounded-full transition-all ${indicators.rsi > 70 ? 'bg-[#FF3D00]' : indicators.rsi < 30 ? 'bg-[#00C853]' : 'bg-[#2962FF]'}`} style={{
-                    width: `${indicators.rsi}%`
-                  }} />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>超卖</span>
-                    <span>中性</span>
-                    <span>超买</span>
-                  </div>
-                </div>
-
-                {/* MACD */}
-                <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
-                  <div className="text-sm text-gray-400 mb-3">MACD</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">MACD</span>
-                      <span className="font-mono text-sm text-[#2962FF]">{indicators.macd.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Signal</span>
-                      <span className="font-mono text-sm text-[#FF9800]">{indicators.signal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Histogram</span>
-                      <span className={`font-mono text-sm ${indicators.macd > indicators.signal ? 'text-[#00C853]' : 'text-[#FF3D00]'}`}>
-                        {(indicators.macd - indicators.signal).toFixed(2)}
+                
+                {/* 短期趋势 */}
+                <div className="p-3 bg-[#0B0F19] rounded-lg border border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">短期趋势 (1H)</span>
+                    <div className="flex items-center space-x-1">
+                      {indicators.rsi > 50 ? <TrendingUp className="w-4 h-4 text-[#00C853]" /> : <TrendingDown className="w-4 h-4 text-[#FF3D00]" />}
+                      <span className={`text-sm font-medium ${indicators.rsi > 50 ? 'text-[#00C853]' : 'text-[#FF3D00]'}`}>
+                        {indicators.rsi > 50 ? '上涨' : '下跌'}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Moving Averages */}
-                <div className="p-4 bg-[#0B0F19] rounded-lg border border-gray-800">
-                  <div className="text-sm text-gray-400 mb-3">移动平均线</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">MA 20</span>
-                      <span className="font-mono text-sm">${indicators.ma20.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">MA 50</span>
-                      <span className="font-mono text-sm">${indicators.ma50.toLocaleString()}</span>
+                {/* 中期趋势 */}
+                <div className="p-3 bg-[#0B0F19] rounded-lg border border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">中期趋势 (4H)</span>
+                    <div className="flex items-center space-x-1">
+                      {currentPrice > indicators.ma20 ? <TrendingUp className="w-4 h-4 text-[#00C853]" /> : <TrendingDown className="w-4 h-4 text-[#FF3D00]" />}
+                      <span className={`text-sm font-medium ${currentPrice > indicators.ma20 ? 'text-[#00C853]' : 'text-[#FF3D00]'}`}>
+                        {currentPrice > indicators.ma20 ? '上涨' : '下跌'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Signal */}
-                <div className={`p-4 rounded-lg border ${indicators.rsi > 70 ? 'bg-[#FF3D00]/10 border-[#FF3D00]/30' : indicators.rsi < 30 ? 'bg-[#00C853]/10 border-[#00C853]/30' : 'bg-[#2962FF]/10 border-[#2962FF]/30'}`}>
-                  <div className="flex items-center space-x-2">
-                    {indicators.rsi > 70 ? <TrendingDown className="w-5 h-5 text-[#FF3D00]" /> : indicators.rsi < 30 ? <TrendingUp className="w-5 h-5 text-[#00C853]" /> : <Activity className="w-5 h-5 text-[#2962FF]" />}
-                    <div>
-                      <div className="font-bold">
-                        {indicators.rsi > 70 ? '卖出信号' : indicators.rsi < 30 ? '买入信号' : '中性'}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {indicators.rsi > 70 ? 'RSI超买，建议谨慎' : indicators.rsi < 30 ? 'RSI超卖，可能反弹' : '市场处于中性区域'}
-                      </div>
+                {/* 长期趋势 */}
+                <div className="p-3 bg-[#0B0F19] rounded-lg border border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">长期趋势 (1D)</span>
+                    <div className="flex items-center space-x-1">
+                      {currentPrice > indicators.ma50 ? <TrendingUp className="w-4 h-4 text-[#00C853]" /> : <TrendingDown className="w-4 h-4 text-[#FF3D00]" />}
+                      <span className={`text-sm font-medium ${currentPrice > indicators.ma50 ? 'text-[#00C853]' : 'text-[#FF3D00]'}`}>
+                        {currentPrice > indicators.ma50 ? '上涨' : '下跌'}
+                      </span>
                     </div>
                   </div>
                 </div>
+
+                {/* 趋势强度 */}
+                <div className="p-3 bg-[#0B0F19] rounded-lg border border-gray-800">
+                  <div className="text-sm text-gray-400 mb-2">趋势强度</div>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 bg-gray-700 rounded-full h-2">
+                      <div className="bg-[#2962FF] h-2 rounded-full" style={{
+                      width: `${Math.abs(indicators.rsi - 50) * 2}%`
+                    }} />
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {Math.abs(indicators.rsi - 50) > 15 ? '强' : Math.abs(indicators.rsi - 50) > 8 ? '中' : '弱'}
+                    </span>
+                  </div>
+                </div>
+
               </CardContent>
             </Card>
+
           </div>
         </div>
       </main>
